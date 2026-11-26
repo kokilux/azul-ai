@@ -55,42 +55,41 @@ export const Board: React.FC<BoardProps> = ({
   return (
     <div
       className={cn(
-        'w-full max-w-2xl rounded-2xl p-4 md:p-6 shadow-xl border bg-white flex flex-col gap-4 relative overflow-hidden transition-all',
+        'w-full rounded-2xl p-4 md:p-5 shadow-xl border flex flex-col gap-4 relative overflow-hidden transition-all backdrop-blur-md',
         isActive 
-          ? 'border-indigo-500 ring-2 ring-indigo-200 scale-[1.01]' 
-          : 'border-slate-200 opacity-90'
+          ? 'border-indigo-400/40 bg-slate-900/70 ring-1 ring-indigo-400/30 shadow-[0_20px_60px_rgba(79,70,229,0.18)]' 
+          : 'border-white/10 bg-slate-900/45'
       )}
     >
-      {/* Background decoration for Active Player */}
       {isActive && (
-        <div className="absolute top-0 right-0 h-1 w-full bg-gradient-to-r from-indigo-500 to-violet-500" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-cyan-400 to-indigo-400" />
       )}
 
       {/* Header: Player Info */}
-      <div className="flex justify-between items-center border-b pb-2">
+      <div className="flex justify-between items-center border-b border-white/10 pb-3">
         <div className="flex items-center gap-2">
           <div className={cn(
-            "w-3 h-3 rounded-full",
-            isActive ? "bg-indigo-500 animate-pulse" : "bg-slate-300"
+            "w-2.5 h-2.5 rounded-full",
+            isActive ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)] animate-pulse" : "bg-slate-600"
           )} />
-          <h3 className="font-bold text-slate-800 flex items-center gap-1.5 md:text-lg">
+          <h3 className="font-bold text-slate-100 flex items-center gap-1.5 md:text-lg">
             {board.name}
             {board.type === 'ai' && (
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border select-none ${
                 board.aiDifficulty === 'hard'
-                  ? 'bg-rose-100 text-rose-700 border-rose-300'
+                  ? 'bg-rose-500/15 text-rose-200 border-rose-400/30'
                   : board.aiDifficulty === 'normal'
-                  ? 'bg-amber-100 text-amber-700 border-amber-300'
-                  : 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                  ? 'bg-amber-500/15 text-amber-200 border-amber-400/30'
+                  : 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30'
               }`}>
                 AI {board.aiDifficulty === 'hard' ? '最強' : board.aiDifficulty === 'normal' ? '中級' : '初級'}
               </span>
             )}
           </h3>
         </div>
-        <div className="bg-slate-100 rounded-lg px-3 py-1 flex items-center gap-1 border">
-          <span className="text-xs font-semibold text-slate-500">SCORE</span>
-          <span className="text-lg font-extrabold text-indigo-700 font-mono">{board.score}</span>
+        <div className="bg-white/5 rounded-xl px-3 py-1.5 flex items-center gap-2 border border-white/10">
+          <span className="text-[10px] font-semibold text-slate-400 tracking-wider">SCORE</span>
+          <span className="text-xl font-extrabold text-indigo-200 font-mono">{board.score}</span>
         </div>
       </div>
 
@@ -113,13 +112,13 @@ export const Board: React.FC<BoardProps> = ({
                 }}
                 className={cn(
                   'flex gap-1.5 items-center p-1 rounded-md transition-all',
-                  isActive && isPlacing && isValid && 'bg-emerald-50 border border-emerald-400 border-dashed cursor-pointer hover:bg-emerald-100 scale-[1.02] shadow-sm',
-                  isActive && isPlacing && !isValid && 'opacity-30'
+                  isActive && isPlacing && isValid && 'bg-emerald-500/10 border border-emerald-400/50 border-dashed cursor-pointer hover:bg-emerald-500/15 scale-[1.02] shadow-sm',
+                  isActive && isPlacing && !isValid && 'opacity-25'
                 )}
               >
                 {/* Visual feedback if a line is valid for clicking */}
                 {isActive && isPlacing && isValid && (
-                  <span className="text-[10px] text-emerald-600 font-extrabold animate-bounce mr-1">
+                  <span className="text-[10px] text-emerald-300 font-extrabold animate-bounce mr-1">
                     配置
                   </span>
                 )}
@@ -143,7 +142,7 @@ export const Board: React.FC<BoardProps> = ({
         </div>
 
         {/* Vertical Divider */}
-        <div className="w-[1px] h-full bg-slate-200" />
+        <div className="w-px h-full bg-white/10" />
 
         {/* Right: Wall (壁) */}
         <div className="grid grid-cols-5 gap-1.5 justify-center items-center">
@@ -194,7 +193,7 @@ export const Board: React.FC<BoardProps> = ({
           }}
           className={cn(
             'flex gap-1 p-2 rounded-xl bg-slate-50 border items-center justify-start min-h-[44px] transition-all overflow-x-auto',
-            isActive && isPlacing && 'bg-emerald-50/50 border-emerald-400 border-dashed cursor-pointer hover:bg-emerald-100 shadow-inner'
+            isActive && isPlacing && 'bg-emerald-500/10 border-emerald-400/50 border-dashed cursor-pointer hover:bg-emerald-500/15 shadow-inner'
           )}
         >
           {Array(7)
@@ -208,13 +207,13 @@ export const Board: React.FC<BoardProps> = ({
                   {item ? (
                     item === 'first' ? (
                       <Tile color="first" size="sm" />
-                    ) : item === ('special_5' as any) ? (
+                    ) : item === 'special_5' ? (
                       <Tile color="special_5" size="sm" />
                     ) : (
                       <Tile color={item as TileColor} size="sm" />
                     )
                   ) : (
-                    <div className="w-7 h-7 border border-slate-200 border-dashed bg-slate-100/50 rounded flex items-center justify-center text-[9px] font-bold text-slate-300 font-mono select-none">
+                    <div className="w-7 h-7 border border-white/10 border-dashed bg-white/[0.03] rounded flex items-center justify-center text-[9px] font-bold text-slate-500 font-mono select-none">
                       -{penalty}
                     </div>
                   )}
