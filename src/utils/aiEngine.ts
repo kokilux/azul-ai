@@ -21,7 +21,7 @@ import {
   TileColor,
   WallCell,
 } from '../types/game';
-import { WALL_LAYOUT, getValidRowsForColor, fillPlatesAndStartRound } from './gameEngine';
+import { WALL_LAYOUT, getValidRowsForColor, draftTiles } from './gameEngine';
 import pretrainedCheckpoint from '../data/pretrainedWeights.json';
 
 // ─────────────────────────────────────────────
@@ -725,93 +725,14 @@ function generateAllMoves(state: GameState, playerIndex: number): AIMove[] {
 // Simulation
 // ─────────────────────────────────────────────
 
-function cloneState(s: GameState): GameState {
-  return JSON.parse(JSON.stringify(s));
-}
 
-function pushToFloorWithShield(state: GameState, player: PlayerBoard, color: TileColor): void {
-  if (player.floor.length < 7) {
-    const shieldIdx = player.floor.indexOf('special_5');
-    if (shieldIdx !== -1) {
-      player.floor.splice(shieldIdx, 1);
-      state.discardPile.push(color);
-      return;
-    }
-    player.floor.push(color);
-  } else {
-    state.discardPile.push(color);
-  }
-}
 
 function simulateDraft(state: GameState, move: AIMove, pi: number): GameState {
-  const s = cloneState(state);
-  const p = s.players[pi];
-  let count = 0;
-
-  if (move.source === 'center') {
-    count = s.center.tiles.filter((t) => t === move.color).length;
-    s.center.tiles = s.center.tiles.filter((t) => t !== move.color);
-    if (s.center.hasFirstPlayerTile) {
-      s.center.hasFirstPlayerTile = false;
-      s.firstPlayerThisRound = p.id;
-      s.isFirstPlayerClaimedThisRound = true;
-      p.floor.push('first');
-    }
-  } else {
-    const pl = s.plates[move.source.plateIndex];
-    count = pl.tiles.filter((t) => t === move.color).length;
-    const rem = pl.tiles.filter((t) => t !== move.color);
-    pl.tiles = [];
-
-    if (s.variantSpecialFactories) {
-      if (pl.type === 'special_3') {
-        pl.tiles = rem;
-      } else if (pl.type === 'special_4') {
-        const numPlates = s.plates.length;
-        const leftIdx = (move.source.plateIndex - 1 + numPlates) % numPlates;
-        const rightIdx = (move.source.plateIndex + 1) % numPlates;
-        const uniqueColors = Array.from(new Set(rem));
-        uniqueColors.forEach((rc, i) => {
-          const colorTiles = rem.filter((t) => t === rc);
-          const target = i % 2 === 0 ? s.plates[leftIdx] : s.plates[rightIdx];
-          target.tiles.push(...colorTiles);
-        });
-      } else if (pl.type === 'special_5') {
-        p.floor.push('special_5');
-        s.center.tiles.push(...rem);
-      } else {
-        s.center.tiles.push(...rem);
-      }
-    } else {
-      s.center.tiles.push(...rem);
-    }
-  }
-
-  if (move.targetRowIndex === 'floor') {
-    for (let i = 0; i < count; i++) pushToFloorWithShield(s, p, move.color);
-  } else {
-    const row = p.patternLines[move.targetRowIndex];
-    const cap = move.targetRowIndex + 1;
-    const cur = row.filter((t) => t !== null).length;
-    const toLine = Math.min(count, cap - cur);
-    const toFloor = count - toLine;
-    let placed = 0;
-    for (let i = 0; i < cap && placed < toLine; i++) {
-      if (row[i] === null) { row[i] = move.color; placed++; }
-    }
-    for (let i = 0; i < toFloor; i++) pushToFloorWithShield(s, p, move.color);
-  }
-
-  const empty = s.plates.every((pl) => pl.tiles.length === 0);
-  const cEmpty = s.center.tiles.length === 0 && !s.center.hasFirstPlayerTile;
-  if (empty && cEmpty) {
-    s.phase = 'tiling';
-    simTiling(s);
-    if ((s as GameState).phase === 'drafting') fillPlatesAndStartRound(s);
-  } else {
-    s.currentPlayerIndex = (s.currentPlayerIndex + 1) % s.players.length;
-  }
-  return s;
+  // Use the real engine transition for parity with special factories, tiling, and refill.
+  const next = draftTiles(state, move.source, move.color, move.targetRowIndex, pi);
+  // Keep search/training memory light: logs are UI-only.
+  next.log = [];
+  return next;
 }
 
 function scoreWall(wall: WallCell[][], r: number, c: number): number {
@@ -829,85 +750,6 @@ function scoreWall(wall: WallCell[][], r: number, c: number): number {
   return hh === 0 && vv === 0 ? 1 : hh + vv;
 }
 
-function calcBonus(p: PlayerBoard): number {
-  let b = 0;
-  for (let r = 0; r < 5; r++) if (p.wall[r].every((c) => c.placed)) b += 2;
-  for (let c = 0; c < 5; c++) {
-    let ok = true;
-    for (let r = 0; r < 5; r++) if (!p.wall[r][c].placed) ok = false;
-    if (ok) b += 7;
-  }
-  for (const col of ALL_COLORS) {
-    let cnt = 0;
-    for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
-      if (p.wall[r][c].placed && p.wall[r][c].color === col) cnt++;
-    }
-    if (cnt === 5) b += 10;
-  }
-  return b;
-}
-
-function simTiling(s: GameState): void {
-  for (const p of s.players) {
-    let pts = 0;
-    for (let r = 0; r < 5; r++) {
-      const line = p.patternLines[r];
-      const cap = r + 1;
-      const cnt = line.filter((t) => t !== null).length;
-      if (cnt === cap) {
-        const col = line[0]!;
-        let ci = -1;
-        if (s.variantGrayWall) {
-          let best = -1;
-          for (let c = 0; c < 5; c++) {
-            if (p.wall[r][c].placed) continue;
-            let conflict = false;
-            for (let rr = 0; rr < 5; rr++) {
-              if (p.wall[rr][c].placed && p.wall[rr][c].color === col) { conflict = true; break; }
-            }
-            if (conflict) continue;
-            p.wall[r][c].placed = true;
-            p.wall[r][c].color = col;
-            const sc = scoreWall(p.wall, r, c) * COLUMN_WEIGHTS[c];
-            p.wall[r][c].placed = false;
-            if (sc > best) { best = sc; ci = c; }
-          }
-        } else {
-          ci = WALL_LAYOUT[r].indexOf(col);
-        }
-        if (ci !== -1 && !p.wall[r][ci].placed) {
-          p.wall[r][ci].placed = true;
-          p.wall[r][ci].color = col;
-          pts += scoreWall(p.wall, r, ci);
-          for (let i = 0; i < cap - 1; i++) s.discardPile.push(col);
-        } else {
-          for (let i = 0; i < cap; i++) s.discardPile.push(col);
-        }
-        p.patternLines[r] = Array(cap).fill(null);
-      }
-    }
-    let pen = 0;
-    p.floor.forEach((it, i) => {
-      if (it === 'special_5') return;
-      pen += FLOOR_PENALTIES[Math.min(i, 6)];
-      if (it !== 'first') s.discardPile.push(it as TileColor);
-    });
-    p.score = Math.max(0, p.score + pts + pen);
-    p.floor = [];
-  }
-  let over = false;
-  for (const p of s.players) {
-    for (let r = 0; r < 5; r++) if (p.wall[r].every((c) => c.placed)) { over = true; break; }
-    if (over) break;
-  }
-  if (over) {
-    s.phase = 'game_over';
-    for (const p of s.players) p.score += calcBonus(p);
-  } else {
-    s.phase = 'drafting';
-    s.round++;
-  }
-}
 
 // ─────────────────────────────────────────────
 // Quick Move Evaluator
@@ -1225,8 +1067,14 @@ function getNormalMove(state: GameState): AIMove {
   return scored[0];
 }
 
+type TTFlag = 'exact' | 'lower' | 'upper';
+interface TTEntry { depth: number; value: number; flag: TTFlag; best?: string }
+
+function moveKey(m: AIMove): string {
+  return `${m.source === 'center' ? 'c' : `p${m.source.plateIndex}`}:${m.color}:${m.targetRowIndex}`;
+}
+
 function hashState(s: GameState, root: number): string {
-  // Coarse hash for TT; includes turn, scores, walls, pattern lines, and supply.
   let h = `${s.currentPlayerIndex}|${root}|${s.round}|${s.phase}|${s.center.hasFirstPlayerTile ? 1 : 0}|`;
   for (const p of s.players) {
     h += `${p.score},${p.floor.length};`;
@@ -1252,40 +1100,42 @@ function getHardMove(state: GameState): AIMove {
 
   const total = countRemainingTiles(state);
   let maxDepth: number;
-  if (total <= 6) maxDepth = 8;
-  else if (total <= 12) maxDepth = 6;
-  else if (total <= 20) maxDepth = 4;
-  else maxDepth = 3;
+  if (total <= 6) maxDepth = 9;
+  else if (total <= 12) maxDepth = 7;
+  else if (total <= 20) maxDepth = 5;
+  else maxDepth = 4;
 
   const scored: ScoredMove[] = moves.map((m) => ({ ...m, score: quickEvalMove(state, m, pi) }));
   scored.sort((a, b) => b.score - a.score);
-  const search = scored.slice(0, Math.min(20, scored.length));
+  const search = scored.slice(0, Math.min(22, scored.length));
 
   let best = search[0];
-  const tt = new Map<string, { depth: number; value: number }>();
-  const deadline = Date.now() + 900; // keep UI responsive
+  const tt = new Map<string, TTEntry>();
+  const killers: string[][] = Array.from({ length: 16 }, () => []);
+  const history = new Map<string, number>();
+  const deadline = Date.now() + 1200;
 
   for (let depth = 2; depth <= maxDepth; depth++) {
     let bestS = -Infinity;
     let bestAtDepth = best;
-    for (const m of search) {
+    let alpha = -Infinity;
+    const beta = Infinity;
+    const ordered = orderMoves(search, tt.get(hashState(state, pi))?.best, killers[depth] || [], history, true);
+    for (const m of ordered) {
       if (Date.now() > deadline) return best;
       const ns = simulateDraft(state, m, pi);
       let sValue: number;
-      if (ns.phase === 'game_over') {
-        sValue = terminal(ns, pi);
-      } else if (ns.phase !== 'drafting') {
-        sValue = evaluateRelative(ns, pi);
-      } else {
-        sValue = minimax(ns, depth - 1, -Infinity, Infinity, ns.currentPlayerIndex === pi, pi, tt, deadline);
-      }
-      sValue += m.score * 0.2; // preserve strong immediate tactical signals
+      if (ns.phase === 'game_over') sValue = terminal(ns, pi);
+      else if (ns.phase !== 'drafting') sValue = evaluateRelative(ns, pi);
+      else sValue = minimax(ns, depth - 1, alpha, beta, ns.currentPlayerIndex === pi, pi, tt, killers, history, deadline);
+      sValue += m.score * 0.15;
       if (sValue > bestS) { bestS = sValue; bestAtDepth = m; }
+      if (sValue > alpha) alpha = sValue;
     }
     best = bestAtDepth;
-    // Reorder for next iteration
-    const bestIdx = search.findIndex((m) => m === best);
+    const bestIdx = search.findIndex((m) => moveKey(m) === moveKey(best));
     if (bestIdx > 0) { const [b] = search.splice(bestIdx, 1); search.unshift(b); }
+    if (Date.now() > deadline) break;
   }
   return best;
 }
@@ -1296,58 +1146,74 @@ function terminal(s: GameState, pi: number): number {
   for (let i = 0; i < s.players.length; i++) {
     if (i !== pi && s.players[i].score > best) best = s.players[i].score;
   }
-  if (my > best) return 1000 + (my - best);
-  if (my < best) return -1000 + (my - best);
+  if (my > best) return 10000 + (my - best);
+  if (my < best) return -10000 + (my - best);
   return 0;
+}
+
+function orderMoves(moves: ScoredMove[], pv: string | undefined, killer: string[], history: Map<string, number>, max: boolean): ScoredMove[] {
+  return [...moves].sort((a, b) => {
+    const ka = moveKey(a), kb = moveKey(b);
+    const pa = ka === pv ? 1 : 0, pb = kb === pv ? 1 : 0;
+    if (pa !== pb) return pb - pa;
+    const kca = killer.includes(ka) ? 1 : 0, kcb = killer.includes(kb) ? 1 : 0;
+    if (kca !== kcb) return kcb - kca;
+    const ha = history.get(ka) ?? 0, hb = history.get(kb) ?? 0;
+    if (ha !== hb) return hb - ha;
+    return max ? b.score - a.score : a.score - b.score;
+  });
 }
 
 function minimax(
   s: GameState, d: number, a: number, b: number, max: boolean, root: number,
-  tt: Map<string, { depth: number; value: number }>, deadline: number,
+  tt: Map<string, TTEntry>, killers: string[][], history: Map<string, number>, deadline: number,
 ): number {
   if (s.phase === 'game_over') return terminal(s, root);
   if (d <= 0 || s.phase !== 'drafting') return evaluateRelative(s, root);
   if (Date.now() > deadline) return evaluateRelative(s, root);
 
+  const alphaOrig = a, betaOrig = b;
   const key = hashState(s, root);
   const cached = tt.get(key);
-  if (cached && cached.depth >= d) return cached.value;
+  if (cached && cached.depth >= d) {
+    if (cached.flag === 'exact') return cached.value;
+    if (cached.flag === 'lower') a = Math.max(a, cached.value);
+    if (cached.flag === 'upper') b = Math.min(b, cached.value);
+    if (a >= b) return cached.value;
+  }
 
   const ci = s.currentPlayerIndex;
   const moves = generateAllMoves(s, ci);
   if (moves.length === 0) return evaluateRelative(s, root);
 
   const scored: ScoredMove[] = moves.map((m) => ({ ...m, score: quickEvalMove(s, m, ci) }));
-  scored.sort((x, y) => max ? y.score - x.score : x.score - y.score);
-  const search = scored.slice(0, d >= 4 ? 8 : 12);
+  const ordered = orderMoves(scored, cached?.best, killers[d] || [], history, max).slice(0, d >= 4 ? 10 : 14);
 
-  let value: number;
-  if (max) {
-    let mx = -Infinity;
-    for (const m of search) {
-      const ns = simulateDraft(s, m, ci);
-      const nm = ns.phase !== 'drafting' ? true : ns.currentPlayerIndex === root;
-      const e = minimax(ns, d - 1, a, b, nm, root, tt, deadline);
-      mx = Math.max(mx, e);
+  let bestValue = max ? -Infinity : Infinity;
+  let bestKey: string | undefined;
+  for (const m of ordered) {
+    const ns = simulateDraft(s, m, ci);
+    const nm = ns.phase !== 'drafting' ? true : ns.currentPlayerIndex === root;
+    const e = minimax(ns, d - 1, a, b, nm, root, tt, killers, history, deadline);
+    if (max) {
+      if (e > bestValue) { bestValue = e; bestKey = moveKey(m); }
       a = Math.max(a, e);
-      if (b <= a) break;
-    }
-    value = mx;
-  } else {
-    let mn = Infinity;
-    for (const m of search) {
-      const ns = simulateDraft(s, m, ci);
-      const nm = ns.phase !== 'drafting' ? true : ns.currentPlayerIndex === root;
-      const e = minimax(ns, d - 1, a, b, nm, root, tt, deadline);
-      mn = Math.min(mn, e);
+    } else {
+      if (e < bestValue) { bestValue = e; bestKey = moveKey(m); }
       b = Math.min(b, e);
-      if (b <= a) break;
     }
-    value = mn;
+    if (b <= a) {
+      const mk = moveKey(m);
+      const k = killers[d] || (killers[d] = []);
+      if (!k.includes(mk)) { k.unshift(mk); if (k.length > 2) k.pop(); }
+      history.set(mk, (history.get(mk) ?? 0) + d * d);
+      break;
+    }
   }
 
-  if (tt.size < 20000) tt.set(key, { depth: d, value });
-  return value;
+  const flag: TTFlag = bestValue <= alphaOrig ? 'upper' : bestValue >= betaOrig ? 'lower' : 'exact';
+  if (tt.size < 40000) tt.set(key, { depth: d, value: bestValue, flag, best: bestKey });
+  return bestValue;
 }
 
 // ─────────────────────────────────────────────
@@ -1433,22 +1299,49 @@ function evaluateCheckpoint(
   };
 }
 
+export interface TrainingGameOptions {
+  variantGrayWall?: boolean;
+  variantSpecialFactories?: boolean;
+  opponent?: 'self' | 'baseline' | 'greedy';
+  explorationRate?: number;
+}
+
+function pickOpponentMove(state: GameState, playerIndex: number, opponent: TrainingGameOptions['opponent']): AIMove {
+  if (opponent === 'baseline') return trainingMove(state, playerIndex, PRETRAINED_WEIGHTS, 0.03);
+  if (opponent === 'greedy') {
+    const moves = generateAllMoves(state, playerIndex);
+    if (moves.length === 0) return fallback(state);
+    const scored = moves.map((m) => ({ ...m, score: quickEvalMove(state, m, playerIndex) }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0];
+  }
+  return trainingMove(state, playerIndex, currentWeights, 0.12);
+}
+
 export function runOneTrainingGame(
-  initGame: (...args: any[]) => GameState
+  initGame: (...args: any[]) => GameState,
+  options: TrainingGameOptions = {},
 ): { scores: number[]; games: number } {
-  const state: GameState = initGame(['RL_A', 'RL_B'], ['ai', 'ai'], ['hard', 'hard'], false, false);
+  const variantGrayWall = options.variantGrayWall ?? false;
+  const variantSpecialFactories = options.variantSpecialFactories ?? false;
+  const opponent = options.opponent ?? 'self';
+  const explorationRate = options.explorationRate ?? 0.12;
+  const learnerIndex = Math.random() < 0.5 ? 0 : 1;
+  const state: GameState = initGame(['RL_Learner', 'RL_Opp'], ['ai', 'ai'], ['hard', 'hard'], variantGrayWall, variantSpecialFactories);
   const traj: { f: number[]; pi: number }[] = [];
   let cur = state;
-  let iter = 500;
+  let iter = 800;
 
   while (cur.phase === 'drafting' && iter-- > 0) {
     const pi = cur.currentPlayerIndex;
     const moves = generateAllMoves(cur, pi);
     if (moves.length === 0) break;
 
-    traj.push({ f: extractFeatures(cur, pi), pi });
-
-    cur = simulateDraft(cur, trainingMove(cur, pi, currentWeights, 0.15), pi);
+    if (pi === learnerIndex) traj.push({ f: extractFeatures(cur, pi), pi });
+    const move = pi === learnerIndex
+      ? trainingMove(cur, pi, currentWeights, explorationRate)
+      : pickOpponentMove(cur, pi, opponent);
+    cur = simulateDraft(cur, move, pi);
     if (cur.phase !== 'drafting' && cur.phase !== 'game_over') break;
   }
 
@@ -1459,7 +1352,6 @@ export function runOneTrainingGame(
     return (score - best * 0.6) / 10;
   });
 
-  // Monte Carlo reward-to-go with light bootstrapping for stability.
   const lastSeen: number[] = Array(cur.players.length).fill(-1);
   for (let t = traj.length - 1; t >= 0; t--) {
     const { f, pi } = traj[t];
@@ -1474,9 +1366,7 @@ export function runOneTrainingGame(
       target = 0.7 * mcTarget + 0.3 * bootstrap;
     }
     const err = target - pred;
-    for (let i = 0; i < NUM_FEATURES; i++) {
-      currentWeights[i] += LR * err * f[i];
-    }
+    for (let i = 0; i < NUM_FEATURES; i++) currentWeights[i] += LR * err * f[i];
     lastSeen[pi] = t;
   }
 
@@ -1493,6 +1383,39 @@ export function runTrainingBatch(
   const baselineWeights = [...currentWeights];
   for (let i = 0; i < n; i++) runOneTrainingGame(init);
   if (!evaluateAfterBatch) return trainingCount;
+  lastCheckpointEvaluation = evaluateCheckpoint(currentWeights, baselineWeights, init);
+  if (!lastCheckpointEvaluation.accepted) currentWeights = baselineWeights;
+  saveWeights();
+  return trainingCount;
+}
+
+export interface LeagueTrainingOptions {
+  games: number;
+  evaluateAfterBatch?: boolean;
+  curriculum?: Array<TrainingGameOptions & { weight?: number }>;
+}
+
+export function runLeagueTrainingBatch(
+  init: (...args: any[]) => GameState,
+  options: LeagueTrainingOptions,
+): number {
+  const baselineWeights = [...currentWeights];
+  const curriculum = options.curriculum && options.curriculum.length > 0 ? options.curriculum : [
+    { opponent: 'self' as const, variantGrayWall: false, variantSpecialFactories: false, weight: 4 },
+    { opponent: 'baseline' as const, variantGrayWall: false, variantSpecialFactories: false, weight: 2 },
+    { opponent: 'greedy' as const, variantGrayWall: false, variantSpecialFactories: false, weight: 1 },
+    { opponent: 'self' as const, variantGrayWall: true, variantSpecialFactories: false, weight: 1 },
+    { opponent: 'self' as const, variantGrayWall: false, variantSpecialFactories: true, weight: 1 },
+  ];
+  const pool: TrainingGameOptions[] = [];
+  for (const c of curriculum) for (let i = 0; i < (c.weight ?? 1); i++) pool.push(c);
+
+  for (let i = 0; i < options.games; i++) {
+    const cfg = pool[Math.floor(Math.random() * pool.length)];
+    runOneTrainingGame(init, cfg);
+  }
+
+  if (options.evaluateAfterBatch === false) return trainingCount;
   lastCheckpointEvaluation = evaluateCheckpoint(currentWeights, baselineWeights, init);
   if (!lastCheckpointEvaluation.accepted) currentWeights = baselineWeights;
   saveWeights();

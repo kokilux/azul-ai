@@ -18,8 +18,8 @@ npm run dev
 | `npm run preview` | ビルド結果のプレビュー |
 | `npm run typecheck` | TypeScript 型チェック (`tsc --noEmit`) |
 | `npm run test` | Vitest によるユニットテスト |
-| `npm run bench:ai` | AI 難易度間の簡易ベンチマーク |
-| `npm run pretrain:ai` | AI 事前学習（長時間） |
+| `npm run bench:ai` | AI難易度/バリアントのベンチマーク（`--suite smoke` / `--suite full`） |
+| `npm run pretrain:ai` | AI 事前学習（長時間、デフォルトは league モード） |
 
 ## プロジェクト構成
 
@@ -47,7 +47,7 @@ npm run dev
 - **中級 (normal)**: ヒューリスティック評価による貪欲選択
 - **最強 (hard)**: 117次元特徴量 + 自己対戦学習重み + 反復深化 Minimax/Alpha-Beta + 置換表
 
-学習重みはブラウザ `localStorage` に保存され、JSON でエクスポート/インポートできます。Node 実行時は `localStorage` がないため永続化は無効化され、事前学習重み/初期重みで動作します。
+学習重みはブラウザ `localStorage` に保存され、JSON でエクスポート/インポートできます。Node 実行時は `localStorage` がないため永続化は無効化され、事前学習重み/初期重みで動作します。自己対戦学習は league/curriculum（self/baseline/greedy、通常/グレイウォール/特殊工場）をサポートします。
 
 ## 開発メモ
 
