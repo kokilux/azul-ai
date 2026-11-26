@@ -37,7 +37,7 @@ export const Board: React.FC<BoardProps> = ({
       case 'blue': return 'bg-blue-600/10 border-blue-200 text-blue-300';
       case 'red': return 'bg-red-500/10 border-red-200 text-red-300';
       case 'yellow': return 'bg-amber-400/10 border-amber-200 text-amber-300';
-      case 'black': return 'bg-slate-800/10 border-slate-300 text-slate-300';
+      case 'black': return 'bg-slate-500/15 border-slate-300/50 text-slate-200';
       case 'cyan': return 'bg-cyan-500/10 border-cyan-200 text-cyan-300';
     }
   };
