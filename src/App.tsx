@@ -138,8 +138,15 @@ export default function App() {
 
   if (!gameState) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-white to-indigo-50 p-4 md:p-8">
-        <Setup onStartGame={handleStartGame} onOpenRules={() => setIsRulesOpen(true)} />
+      <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#1e293b_0%,_#0f172a_45%,_#020617_100%)] text-slate-100 p-4 md:p-8 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-24 left-1/2 h-72 w-[40rem] -translate-x-1/2 rounded-full bg-indigo-500/10 blur-3xl" />
+          <div className="absolute top-1/3 -left-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-amber-500/10 blur-3xl" />
+        </div>
+        <div className="relative min-h-[calc(100vh-2rem)] md:min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <Setup onStartGame={handleStartGame} onOpenRules={() => setIsRulesOpen(true)} />
+        </div>
         <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
       </div>
     );
