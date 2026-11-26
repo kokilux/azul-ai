@@ -127,7 +127,7 @@ export const Tile: React.FC<TileProps> = ({
     blue: 'bg-blue-600 border border-blue-700 shadow-blue-900/30 shadow-inner',
     red: 'bg-red-500 border border-red-600 shadow-red-900/30 shadow-inner',
     yellow: 'bg-amber-400 border border-amber-500 shadow-amber-600/30 shadow-inner',
-    black: 'bg-slate-800 border border-slate-900 shadow-black/40 shadow-inner',
+    black: 'bg-slate-700 border-2 border-slate-300/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_0_0_1px_rgba(255,255,255,0.08)]',
     cyan: 'bg-cyan-500 border border-cyan-600 shadow-cyan-600/30 shadow-inner',
   }[color];
 
