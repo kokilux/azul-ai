@@ -64,17 +64,17 @@ export const Plate: React.FC<PlateProps> = ({
   return (
     <div
       className={cn(
-        'relative w-28 h-28 md:w-36 md:h-36 rounded-full border-4 border-amber-100 bg-amber-50/40 shadow-inner flex items-center justify-center transition-all p-2 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-50 to-orange-50/40',
-        isSelected && 'border-indigo-500 scale-105 shadow-md shadow-indigo-200 bg-indigo-50/10'
+        'relative w-28 h-28 md:w-36 md:h-36 rounded-full border border-white/15 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.14),rgba(255,255,255,0.03)_45%,rgba(15,23,42,0.35)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_30px_rgba(0,0,0,0.25)] flex items-center justify-center transition-all duration-200 p-2 backdrop-blur-sm',
+        isSelected && 'border-indigo-400/70 scale-105 shadow-[0_0_0_1px_rgba(129,140,248,0.35),0_0_30px_rgba(99,102,241,0.25)]'
       )}
     >
       {/* Plate ID or Special Badge */}
       <div 
         className={cn(
-          "absolute -top-1 -left-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full border shadow-sm z-20 select-none",
+          "absolute -top-1 -left-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full border shadow-sm z-20 select-none backdrop-blur-sm",
           plate.type === 'normal' 
-            ? "bg-slate-100 text-slate-500 border-slate-200" 
-            : "bg-gradient-to-r from-pink-500 to-rose-500 text-white border-pink-400 font-extrabold"
+            ? "bg-slate-900/80 text-slate-300 border-white/10" 
+            : "bg-gradient-to-r from-pink-500 to-rose-500 text-white border-pink-300/40 font-extrabold"
         )}
         title={getSpecialDescription()}
       >
@@ -82,7 +82,7 @@ export const Plate: React.FC<PlateProps> = ({
       </div>
 
       {plate.tiles.length === 0 ? (
-        <span className="text-xs text-amber-300 select-none italic font-medium">空</span>
+        <span className="text-xs text-slate-500 select-none italic font-medium">空</span>
       ) : (
         <div className="grid grid-cols-2 gap-1.5 p-2 justify-center items-center">
           {uniqueColors.map((color) => {
