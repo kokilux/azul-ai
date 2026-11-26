@@ -106,20 +106,16 @@ export default function App() {
     targetRowIndex: number | 'floor',
     playerIndex: number
   ) => {
-    if (!gameState) return;
+    setGameState((prev) => {
+      if (!prev) return prev;
+      if (prev.players[playerIndex].type === 'human') {
+        recordHumanDecision(prev, playerIndex);
+      }
+      return draftTiles(prev, source, color, targetRowIndex, playerIndex);
+    });
 
-    if (gameState.players[playerIndex].type === 'human') {
-      recordHumanDecision(gameState, playerIndex);
-    }
-    
-    const nextState = draftTiles(gameState, source, color, targetRowIndex, playerIndex);
-    setGameState(nextState);
-    
-    // Reset selection after human move
-    if (gameState.players[playerIndex].type === 'human') {
-      setSelectedSource(null);
-      setSelectedColor(null);
-    }
+    setSelectedSource(null);
+    setSelectedColor(null);
   };
 
   const handleRowPlacement = (rowIndex: number) => {
