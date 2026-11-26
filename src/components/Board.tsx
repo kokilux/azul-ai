@@ -11,6 +11,7 @@ interface BoardProps {
   isPlacing?: boolean; // true if a tile is currently selected and we are waiting for target
   onRowClick?: (rowIndex: number) => void;
   onFloorClick?: () => void;
+  compact?: boolean;
 }
 
 export const Board: React.FC<BoardProps> = ({
@@ -20,6 +21,7 @@ export const Board: React.FC<BoardProps> = ({
   isPlacing = false,
   onRowClick,
   onFloorClick,
+  compact = false,
 }) => {
   const floorPenalties = [1, 1, 2, 2, 2, 3, 3];
 
@@ -55,7 +57,8 @@ export const Board: React.FC<BoardProps> = ({
   return (
     <div
       className={cn(
-        'w-full rounded-2xl p-4 md:p-5 shadow-xl border flex flex-col gap-4 relative overflow-hidden transition-all backdrop-blur-md',
+        'w-full rounded-2xl shadow-xl border flex flex-col relative overflow-hidden transition-all backdrop-blur-md',
+        compact ? 'p-3 md:p-3.5 gap-3' : 'p-4 md:p-5 gap-4',
         isActive 
           ? 'border-indigo-400/40 bg-slate-900/70 ring-1 ring-indigo-400/30 shadow-[0_20px_60px_rgba(79,70,229,0.18)]' 
           : 'border-white/10 bg-slate-900/45'
@@ -94,7 +97,7 @@ export const Board: React.FC<BoardProps> = ({
       </div>
 
       {/* Main Board Grid: Pattern Lines on Left, Wall on Right */}
-      <div className="grid grid-cols-[1fr_auto_1.2fr] gap-4 md:gap-8 items-center py-2">
+      <div className={cn("grid grid-cols-[1fr_auto_1.2fr] items-center", compact ? "gap-3 md:gap-4 py-1" : "gap-4 md:gap-8 py-2")}>
         
         {/* Left: Pattern Lines (図案ライン) */}
         <div className="flex flex-col gap-2 items-end">

@@ -221,9 +221,9 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="relative flex-1 p-4 md:p-6 lg:p-8 flex flex-col xl:flex-row gap-6 max-w-[1600px] mx-auto w-full">
+      <main className="relative flex-1 p-3 md:p-4 lg:p-5 flex flex-col xl:flex-row gap-4 xl:gap-5 max-w-[1800px] mx-auto w-full xl:max-h-[calc(100vh-76px)]">
         {/* Left Column */}
-        <div className="flex-[1.15] flex flex-col gap-5 min-w-0">
+        <div className="flex-[1.15] flex flex-col gap-4 min-w-0 xl:overflow-y-auto xl:pr-1">
           {/* Phase Banner */}
           <div className="relative overflow-hidden rounded-2xl p-4 md:p-5 border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-xl">
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-transparent to-cyan-500/10" />
@@ -264,7 +264,7 @@ export default function App() {
           </div>
 
           {/* Plates */}
-          <div className="rounded-2xl p-5 md:p-6 border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-xl">
+          <div className="rounded-2xl p-4 md:p-5 border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-xl">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <div className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Factories</div>
@@ -305,7 +305,7 @@ export default function App() {
           </div>
 
           {/* Game Log */}
-          <div className="rounded-2xl border border-white/10 bg-slate-950/70 backdrop-blur-md p-4 shadow-xl flex flex-col h-[220px]">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/70 backdrop-blur-md p-4 shadow-xl flex flex-col h-[170px] xl:h-[160px]">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-3 flex items-center justify-between">
               <span>📝 Game Log</span>
               <span className="text-slate-500 normal-case tracking-normal">{gameState.log.length}件</span>
@@ -333,19 +333,23 @@ export default function App() {
         </div>
 
         {/* Right Column: Players */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
+        <div className="flex-1 flex flex-col gap-3 min-w-0 xl:overflow-hidden">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">Player Boards</div>
               <div className="text-sm text-slate-300 mt-0.5">プレイヤーボード</div>
             </div>
+            <div className="text-[11px] text-slate-500">{gameState.players.length}人対戦</div>
           </div>
-          <div className="flex flex-col gap-5 xl:max-h-[calc(100vh-10rem)] xl:overflow-y-auto pr-1">
+          <div className={cn(
+            "grid gap-3 xl:overflow-y-auto pr-1 xl:max-h-[calc(100vh-140px)]",
+            gameState.players.length <= 2 ? "grid-cols-1 2xl:grid-cols-2" : "grid-cols-1 2xl:grid-cols-2"
+          )}>
             {gameState.players.map((board, idx) => {
               const isActive = gameState.currentPlayerIndex === idx;
               const isPlacing = isActive && selectedSource !== null && selectedColor !== null;
               return (
-                <div key={board.id} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div key={board.id} className="animate-in fade-in slide-in-from-bottom-4 duration-300 min-w-0">
                   <Board
                     board={board}
                     isActive={isActive}
@@ -353,6 +357,7 @@ export default function App() {
                     isValidTargetRows={isActive ? validRows : [false, false, false, false, false]}
                     onRowClick={handleRowPlacement}
                     onFloorClick={handleFloorPlacement}
+                    compact={gameState.players.length >= 2}
                   />
                 </div>
               );
