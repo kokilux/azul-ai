@@ -26,16 +26,16 @@ export const CenterArea: React.FC<CenterAreaProps> = ({
   return (
     <div
       className={cn(
-        'relative min-h-[110px] w-full max-w-xl mx-auto rounded-2xl border-4 border-dashed border-slate-300 bg-slate-50/50 p-4 flex flex-wrap items-center justify-center gap-4 transition-all',
-        isSelected && 'border-indigo-400 bg-indigo-50/20 shadow-md shadow-indigo-100'
+        'relative min-h-[120px] w-full rounded-2xl border border-dashed border-white/15 bg-slate-950/20 p-5 pt-7 flex flex-wrap items-center justify-center gap-4 transition-all',
+        isSelected && 'border-indigo-400/60 bg-indigo-500/10 shadow-[0_0_0_1px_rgba(129,140,248,0.25),0_12px_40px_rgba(79,70,229,0.15)]'
       )}
     >
-      <div className="absolute -top-3 left-4 bg-white px-2 py-0.5 text-xs text-slate-400 font-bold border border-slate-200 rounded shadow-sm select-none">
-        場の中央
+      <div className="absolute top-2 left-4 px-2.5 py-1 text-[11px] text-slate-300 font-bold bg-white/5 border border-white/10 rounded-full select-none backdrop-blur-sm">
+        場の中央 / Center
       </div>
 
       {isEmpty ? (
-        <span className="text-sm text-slate-400 select-none italic">空</span>
+        <span className="text-sm text-slate-500 select-none italic">タイルなし</span>
       ) : (
         <div className="flex flex-wrap items-center justify-center gap-3">
           {hasFirstPlayerTile && (
