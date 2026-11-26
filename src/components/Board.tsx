@@ -208,7 +208,7 @@ export const Board: React.FC<BoardProps> = ({
                   {item ? (
                     item === 'first' ? (
                       <Tile color="first" size="sm" />
-                    ) : item === ('special_5' as any) ? (
+                    ) : item === 'special_5' ? (
                       <Tile color="special_5" size="sm" />
                     ) : (
                       <Tile color={item as TileColor} size="sm" />

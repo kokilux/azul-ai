@@ -8,6 +8,9 @@ export interface Tile {
 export type PlayerType = 'human' | 'ai';
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 
+/** Items that can appear on the floor line: tiles, first-player marker, or special-5 shield. */
+export type FloorItem = TileColor | 'first' | 'special_5';
+
 export interface WallCell {
   color: TileColor;
   placed: boolean;
@@ -21,7 +24,7 @@ export interface PlayerBoard {
   score: number;
   patternLines: (TileColor | null)[][]; // 5 rows, lengths 1 to 5. Null means empty.
   wall: WallCell[][]; // 5x5 grid
-  floor: (TileColor | 'first')[]; // max 7
+  floor: FloorItem[]; // max 7
   completedHorizontalRows: number;
   completedVerticalRows: number;
   completedColors: number;

@@ -175,54 +175,38 @@ export function fillPlatesAndStartRound(state: GameState): GameState {
     return { ...plate, tiles: drawnTiles };
   });
 
-  // Type 2 special factory logic: Takes matching tile from neighbors
+  // Type 2 special factory logic: Takes matching tile from neighbors.
+  // Two-phase to avoid in-place mutation order issues.
   if (state.variantSpecialFactories) {
     const numPlates = nextState.plates.length;
-    nextState.plates = nextState.plates.map((plate, index) => {
-      if (plate.type !== 'special_2' || !plate.specialColor) return plate;
+    const plateTiles = nextState.plates.map((plate) => [...plate.tiles]);
+    const takings: TileColor[][] = nextState.plates.map(() => []);
 
-      const leftIdx = (index - 1 + numPlates) % numPlates;
-      const rightIdx = (index + 1) % numPlates;
-
-      const leftPlate = nextState.plates[leftIdx];
-      const rightPlate = nextState.plates[rightIdx];
-
-      const colorToTake = plate.specialColor;
-      let tilesTaken = 0;
-
-      // Extract from left
-      if (leftPlate.tiles.includes(colorToTake)) {
-        leftPlate.tiles = leftPlate.tiles.filter((c) => {
-          if (c === colorToTake) {
-            tilesTaken++;
-            return false;
-          }
-          return true;
-        });
+    for (let i = 0; i < numPlates; i++) {
+      const plate = nextState.plates[i];
+      if (plate.type !== 'special_2' || !plate.specialColor) continue;
+      const leftIdx = (i - 1 + numPlates) % numPlates;
+      const rightIdx = (i + 1) % numPlates;
+      for (const neighborIdx of [leftIdx, rightIdx]) {
+        if (neighborIdx === i) continue;
+        const kept: TileColor[] = [];
+        for (const t of plateTiles[neighborIdx]) {
+          if (t === plate.specialColor) takings[i].push(t);
+          else kept.push(t);
+        }
+        plateTiles[neighborIdx] = kept;
       }
+    }
 
-      // Extract from right
-      if (rightPlate.tiles.includes(colorToTake)) {
-        rightPlate.tiles = rightPlate.tiles.filter((c) => {
-          if (c === colorToTake) {
-            tilesTaken++;
-            return false;
-          }
-          return true;
-        });
-      }
-
-      if (tilesTaken > 0) {
+    nextState.plates = nextState.plates.map((plate, i) => {
+      const taken = takings[i];
+      if (taken.length > 0) {
         nextState.log = [
           ...nextState.log,
-          `特殊工場 ${index + 1} は、隣接する皿から ${colorToTake} を ${tilesTaken} 枚奪いました。`,
+          `特殊工場 ${i + 1} は、隣接する皿から ${plate.specialColor} を ${taken.length} 枚奪いました。`,
         ];
       }
-
-      return {
-        ...plate,
-        tiles: [...plate.tiles, ...Array(tilesTaken).fill(colorToTake)],
-      };
+      return { ...plate, tiles: [...plateTiles[i], ...taken] };
     });
   }
 
@@ -334,7 +318,7 @@ export function draftTiles(
         // We will track if player has special 5 buffer!
         // Let's store special plate on player floor as a string like 'special_5' or separate flag.
         // Let's add it to floor as a special marker.
-        player.floor.push('special_5' as any);
+        player.floor.push('special_5');
         nextState.log = [...nextState.log, `${player.name} は特殊工場 ${source.plateIndex + 1} の効果でペナルティを1回無効化する皿を獲得しました。`];
       }
     }
@@ -357,7 +341,7 @@ export function draftTiles(
     for (let i = 0; i < tilesToPlace; i++) {
       if (player.floor.length < 7) {
         // Special 5 plate absorbs penalty!
-        const specIndex = player.floor.indexOf('special_5' as any);
+        const specIndex = player.floor.indexOf('special_5');
         if (specIndex !== -1) {
           player.floor.splice(specIndex, 1); // remove the plate
           nextState.log = [...nextState.log, `ペナルティが特殊工場の皿によって1回無効化されました。`];
@@ -392,7 +376,7 @@ export function draftTiles(
     // Place excess on floor
     for (let i = 0; i < tilesToFloor; i++) {
       if (player.floor.length < 7) {
-        const specIndex = player.floor.indexOf('special_5' as any);
+        const specIndex = player.floor.indexOf('special_5');
         if (specIndex !== -1) {
           player.floor.splice(specIndex, 1);
           nextState.log = [...nextState.log, `ペナルティが特殊工場の皿によって1回無効化されました。`];
@@ -555,10 +539,11 @@ export function performTilingAndScoring(state: GameState): GameState {
     // 2. Floor line penalties
     let floorPenalty = 0;
     player.floor.forEach((item, index) => {
+      if (item === 'special_5') return; // unused shield: no penalty, no discard
       const p = FLOOR_PENALTIES[Math.min(index, FLOOR_PENALTIES.length - 1)];
       floorPenalty += p; // p is negative
 
-      if (item !== 'first' && item !== ('special_5' as any)) {
+      if (item !== 'first') {
         nextState.discardPile.push(item);
       }
     });
