@@ -726,19 +726,6 @@ function generateAllMoves(state: GameState, playerIndex: number): AIMove[] {
 // ─────────────────────────────────────────────
 
 
-function pushToFloorWithShield(state: GameState, player: PlayerBoard, color: TileColor): void {
-  if (player.floor.length < 7) {
-    const shieldIdx = player.floor.indexOf('special_5');
-    if (shieldIdx !== -1) {
-      player.floor.splice(shieldIdx, 1);
-      state.discardPile.push(color);
-      return;
-    }
-    player.floor.push(color);
-  } else {
-    state.discardPile.push(color);
-  }
-}
 
 function simulateDraft(state: GameState, move: AIMove, pi: number): GameState {
   // Use the real engine transition for parity with special factories, tiling, and refill.
